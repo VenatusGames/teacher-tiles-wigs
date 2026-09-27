@@ -1,13 +1,11 @@
-name: Deploy combined site to GitHub Pages
+name: Deploy WIGs to GitHub Pages
 
-run-name: Deploy main + sandbox + wigs (triggered by ${{ github.ref_name }})
+run-name: Deploy WIGs from main (triggered by ${{ github.ref_name }})
 
 on:
   push:
     branches:
       - main
-      - sandbox
-      - wigs
   workflow_dispatch:
 
 permissions:
@@ -23,70 +21,44 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out site
+      - name: Check out main
         uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - name: Check out WIGs source
-        uses: actions/checkout@v6
-        with:
-          ref: wigs
-          path: .wigs-source
 
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: 24
 
-      - name: Build WIGs
-        working-directory: .wigs-source
+      - name: Install dependencies
         run: |
           npm install --global pnpm@11.19.0
           pnpm install --frozen-lockfile
-          pnpm test
-          pnpm build
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
 
       - name: Prepare site
         run: |
           set -e
           mkdir _site
+          cp -R dist/. _site/
+          cp CNAME _site/CNAME
 
-          trigger_branch="${GITHUB_REF_NAME:-$(git branch --show-current 2>/dev/null || echo unknown)}"
-          trigger_sha="${GITHUB_SHA:-$(git rev-parse HEAD 2>/dev/null || echo unknown)}"
-          trigger_subject="$(git log -1 --pretty=%s 2>/dev/null || echo 'unknown commit')"
-          main_commit=$(git rev-parse origin/main)
-          sandbox_commit=$(git rev-parse origin/sandbox)
-          wigs_commit=$(git rev-parse origin/wigs)
-          main_subject=$(git log -1 --pretty=%s origin/main 2>/dev/null || echo 'unknown main commit')
-          sandbox_subject=$(git log -1 --pretty=%s origin/sandbox 2>/dev/null || echo 'unknown sandbox commit')
-          wigs_subject=$(git log -1 --pretty=%s origin/wigs 2>/dev/null || echo 'unknown wigs commit')
-
-          echo "Publishing main commit: ${main_commit} -> https://teachertiles.com/"
-          echo "Publishing sandbox commit: ${sandbox_commit} -> https://teachertiles.com/sandbox/"
-          echo "Publishing wigs commit: ${wigs_commit} -> https://teachertiles.com/wigs/"
-          echo "Triggered by branch: ${trigger_branch} (${trigger_sha})"
-          echo "Triggered by commit: ${trigger_subject}"
-          git archive origin/main | tar -x -C _site
-          mkdir _site/sandbox
-          git archive origin/sandbox | tar -x -C _site/sandbox
-          mkdir _site/wigs
-          cp -R .wigs-source/dist/. _site/wigs/
+          echo "Publishing commit: ${GITHUB_SHA} -> https://wigs.teachertiles.com/"
           {
-            echo '### Deployment sources'
-            echo "- Triggered by: \`${trigger_branch}\` at \`${trigger_sha:0:12}\`"
-            echo "- Trigger message: ${trigger_subject}"
-            echo "- Main: \`${main_commit:0:12}\` -> [teachertiles.com](https://teachertiles.com/) — ${main_subject}"
-            echo "- Sandbox: \`${sandbox_commit:0:12}\` -> [teachertiles.com/sandbox](https://teachertiles.com/sandbox/) — ${sandbox_subject}"
-            echo "- Wigs: \`${wigs_commit:0:12}\` -> [teachertiles.com/wigs](https://teachertiles.com/wigs/) — ${wigs_subject}"
-            echo '- Artifact layout: `main` at `/`; `sandbox` at `/sandbox/`; `wigs` at `/wigs/`'
+            echo '### Deployment source'
+            echo "- Branch: \`${GITHUB_REF_NAME}\`"
+            echo "- Commit: \`${GITHUB_SHA:0:12}\`"
+            echo "- Site: [wigs.teachertiles.com](https://wigs.teachertiles.com/)"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Generate asset timestamp
         run: |
           asset_version=$(date -u +%s%3N)
           echo "ASSET_VERSION=${asset_version}" >> "$GITHUB_ENV"
-          echo "Generated asset timestamp: ${asset_version}"
 
       - name: Cache-bust local assets
         run: |
@@ -95,58 +67,36 @@ jobs:
           import os
           import re
 
+          index = Path('_site/index.html')
+          if not index.is_file():
+              raise SystemExit('Missing required site entry point: _site/index.html')
+
           version = os.environ['ASSET_VERSION']
           asset_pattern = r'(?P<prefix>(?:href|src)=["\'])(?P<asset>(?![a-zA-Z][a-zA-Z0-9+.-]*:)(?!//)[^"\'?]+\.(?:js|css))(?:\?[^"\']*)?(?P<suffix>["\'])'
+          html = index.read_text(encoding='utf-8')
+          local_assets = list(re.finditer(asset_pattern, html))
+          if not local_assets:
+              raise SystemExit('No local JavaScript or CSS assets found in _site/index.html')
 
-          required_indexes = [Path('_site/index.html'), Path('_site/sandbox/index.html'), Path('_site/wigs/index.html')]
-          missing = [str(index) for index in required_indexes if not index.is_file()]
-          if missing:
-              raise SystemExit(f'Missing required site entry point(s): {", ".join(missing)}')
+          site_root = Path('_site').resolve()
+          for match in local_assets:
+              asset_path = match.group('asset')
+              asset = ((Path('_site') / asset_path.lstrip('/')) if asset_path.startswith('/') else (index.parent / asset_path)).resolve()
+              if not asset.is_relative_to(site_root):
+                  raise SystemExit('Asset path escapes the public site directory')
+              if not asset.is_file():
+                  raise SystemExit(f'Missing local asset referenced by index: {asset_path}')
 
-          candidates = required_indexes
-          indexes = [index for index in candidates if index.is_file()]
-          for index in indexes:
-              html = index.read_text(encoding='utf-8')
-              local_assets = list(re.finditer(asset_pattern, html))
-              if not local_assets:
-                  if index in required_indexes:
-                      raise SystemExit(f'No local JavaScript or CSS assets found in {index}')
-                  print(f'No local JavaScript or CSS assets to cache-bust in {index}; skipping.')
-                  continue
-              for match in local_assets:
-                  asset_path = match.group('asset')
-                  asset = ((Path('_site') / asset_path.lstrip('/')) if asset_path.startswith('/') else (index.parent / asset_path)).resolve()
-                  if not asset.is_relative_to(Path('_site').resolve()):
-                      raise SystemExit('Asset path escapes the public site directory')
-                  if not asset.is_file():
-                      raise SystemExit(f'Missing local asset referenced by {index}: {match.group("asset")}')
-
-              html, replacements = re.subn(
-                  asset_pattern,
-                  lambda match: f"{match.group('prefix')}{match.group('asset')}?v={version}{match.group('suffix')}",
-                  html,
-              )
-              if replacements != len(local_assets):
-                  raise SystemExit(f'Expected {len(local_assets)} local asset replacements in {index}, found {replacements}')
-              index.write_text(html, encoding='utf-8')
-              print(f'Cache-busting completed successfully for {replacements} local assets in {index}.')
+          html, replacements = re.subn(
+              asset_pattern,
+              lambda match: f"{match.group('prefix')}{match.group('asset')}?v={version}{match.group('suffix')}",
+              html,
+          )
+          if replacements != len(local_assets):
+              raise SystemExit(f'Expected {len(local_assets)} local asset replacements, found {replacements}')
+          index.write_text(html, encoding='utf-8')
+          print(f'Cache-busting completed successfully for {replacements} local assets.')
           PY
-
-          asset_indexes=(_site/index.html _site/sandbox/index.html)
-          if test -f _site/wigs/index.html; then asset_indexes+=(_site/wigs/index.html); fi
-          asset_count=$(grep -rhoE '(src|href)="[^" ]+\.(js|css)\?v=[^" ]+"' "${asset_indexes[@]}" | wc -l)
-          test "${asset_count}" -gt 0
-
-          echo "Cache-busting completed successfully."
-          echo "Asset version: ${ASSET_VERSION}"
-          echo "Main assets: _site/index.html"
-          echo "Sandbox assets: _site/sandbox/index.html"
-          if test -f _site/wigs/index.html; then echo "Wigs assets: _site/wigs/index.html"; else echo "Wigs is currently empty; /wigs/ will become available after an index.html is added to the wigs branch."; fi
-          asset_urls=$(grep -rhoE '(src|href)="[^" ]+\.(js|css)\?v=[^" ]+"' "${asset_indexes[@]}")
-          printf '%s\n' "### Cache-busting" >> "$GITHUB_STEP_SUMMARY"
-          printf '%s\n' "Replaced ${asset_count} local asset references with version \\`${ASSET_VERSION}\\`:" >> "$GITHUB_STEP_SUMMARY"
-          printf '%s\n' "$asset_urls" >> "$GITHUB_STEP_SUMMARY"
-          printf '%s\n' "$asset_urls"
 
       - name: Configure Pages
         uses: actions/configure-pages@v6
@@ -172,15 +122,11 @@ jobs:
           PAGE_URL: ${{ steps.deployment.outputs.page_url }}
         run: |
           echo "GitHub Pages deployment completed successfully."
-          echo "Published main: https://teachertiles.com/"
-          echo "Published sandbox: https://teachertiles.com/sandbox/"
-          echo "Published wigs: https://teachertiles.com/wigs/"
+          echo "Published WIGs: https://wigs.teachertiles.com/"
           echo "Pages deployment URL: ${PAGE_URL}"
           {
             echo '### Deployment result'
             echo 'Deployment completed successfully.'
-            echo '- Main: [https://teachertiles.com/](https://teachertiles.com/)'
-            echo '- Sandbox: [https://teachertiles.com/sandbox/](https://teachertiles.com/sandbox/)'
-            echo '- Wigs: [https://teachertiles.com/wigs/](https://teachertiles.com/wigs/)'
+            echo '- WIGs: [https://wigs.teachertiles.com/](https://wigs.teachertiles.com/)'
             echo "- Pages deployment URL: ${PAGE_URL}"
           } >> "$GITHUB_STEP_SUMMARY"
