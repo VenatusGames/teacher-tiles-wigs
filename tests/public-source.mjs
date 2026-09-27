@@ -6,7 +6,7 @@ import { readFileSync, lstatSync, existsSync } from 'node:fs';
 // An explicit inventory prevents accidental publication of a new export or upload.
 // Add files here only after reviewing them for public sharing.
 const approved = new Set([
-  '.github/workflows/deploy-pages.yml', '.gitignore', 'README.md',
+  '.github/workflows/deploy-pages.yml', '.gitignore', 'LICENSE', 'README.md',
   'app/globals.css', 'index.html', 'main.tsx',
   'components/auth-gate.tsx', 'components/student-access-app.tsx', 'lib/firebase.ts', 'lib/firebase-config.ts', 'lib/firestore-activity.ts',
   'lib/model.ts', 'lib/class-store.ts', 'lib/student-access.ts', 'lib/packed-store.ts', 'lib/encryption.ts', 'lib/key-vault.ts', 'lib/read-cache.ts', 'firestore.rules', 'firebase.json',
@@ -16,7 +16,7 @@ const approved = new Set([
   'components/ui/input.tsx', 'components/ui/textarea.tsx',
   'env.d.ts', 'lib/utils.ts',
   'package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml',
-  'public/favicon.svg', 'public/favicon.png', 'public/teacher-tiles.png',
+  'public/favicon.svg', 'public/favicon.png', 'public/teacher-tiles.png', 'CNAME',
   'tests/model.mjs', 'tests/encryption.mjs', 'tests/firestore-rules.mjs', 'tests/public-source.mjs', 'tsconfig.json', 'vite.config.ts',
 ]);
 const files = [...new Set(execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z'], { encoding: 'utf8' }).split('\0').filter(Boolean).filter(existsSync))];
