@@ -1,0 +1,100 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "responses",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "__name__",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "responses",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "studentId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "day",
+          "order": "DESCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": [
+    {
+      "collectionGroup": "classes",
+      "fieldPath": "ciphertext",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "historyMonths",
+      "fieldPath": "ciphertext",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "parts",
+      "fieldPath": "ciphertext",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "students",
+      "fieldPath": "ciphertext",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "questions",
+      "fieldPath": "ciphertext",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "answers",
+      "fieldPath": "ciphertext",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "responses",
+      "fieldPath": "ciphertext",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "keys",
+      "fieldPath": "keyMaterial",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "students",
+      "fieldPath": "imageKey",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "answers",
+      "fieldPath": "imageKey",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "responses",
+      "fieldPath": "items",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "studentAccess",
+      "fieldPath": "studentIds",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "studentAccess",
+      "fieldPath": "questionIds",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "studentAccess",
+      "fieldPath": "answerIds",
+      "indexes": []
+    }
+  ]
+}

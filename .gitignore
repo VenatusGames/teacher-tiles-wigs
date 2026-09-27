@@ -1,0 +1,53 @@
+# Dependencies and generated output
+/node_modules/
+/.pnpm-store/
+/.next/
+/.vinext/
+/dist/
+/out/
+/coverage/
+next-env.d.ts
+*.tsbuildinfo
+
+# Private local data and settings
+/.wrangler/
+.env*
+.dev.vars*
+*.sqlite*
+*.db
+*.db-*
+*.pem
+/uploads/
+/backups/
+/exports/
+
+# Logs and OS files
+*.log
+.DS_Store
+Thumbs.db
+
+# Credential files, database dumps, and private exports
+.npmrc
+.netrc
+.pypirc
+*.key
+*.p12
+*.pfx
+*.jks
+*service-account*.json
+*serviceAccount*.json
+*firebase-adminsdk*.json
+credentials*.json
+*.dump
+*.sql
+*.csv
+*.xlsx
+*.xls
+*.zip
+*.bak
+*.backup
+
+
+/.firebase/
+/.wigs-source/
+

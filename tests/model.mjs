@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import ts from 'typescript';
+const js=ts.transpileModule(readFileSync('lib/model.ts','utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
+const model=await import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`);
+assert.equal(model.localDate(new Date(2026,0,2,1)), '2026-01-02');
+assert.equal(model.emptyData.students.length,0);
+const gate=readFileSync('components/auth-gate.tsx','utf8');
+assert.match(gate,/user && access && !loading && !error/);
+assert.match(gate,/key=\{`\$\{user.uid\}:\$\{access.ownerId\}/);
+const firebase=readFileSync('lib/firebase.ts','utf8');
+assert.match(firebase,/browserSessionPersistence/);
+assert.match(firebase,/memoryLocalCache\(\)/);
+assert.match(firebase,/signInWithPopup\(auth, provider\)/);
+assert(!firebase.includes('getAnalytics'));
+console.log('Account routing, empty-data, session isolation, and sign-in gate checks passed.');
